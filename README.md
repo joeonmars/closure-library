@@ -1,4 +1,6 @@
-closure-library
-===============
+Closure Library is a powerful, low level JavaScript library designed
+for building complex and scalable web applications. It is used by many
+major Google web applications, such as Gmail and Google Docs.
 
-npm package of Google's Closure Library  https://code.google.com/p/closure-library/
+For more information about Closure Library, visit:
+http://code.google.com/closure/library
