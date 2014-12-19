@@ -31,6 +31,8 @@ goog.require('goog.debug.DebugWindow');
 goog.require('goog.debug.LogManager');
 goog.require('goog.debug.Logger');
 goog.require('goog.dom.DomHelper');
+goog.require('goog.dom.safe');
+goog.require('goog.html.SafeHtml');
 goog.require('goog.object');
 goog.require('goog.string');
 goog.require('goog.userAgent');
@@ -48,7 +50,7 @@ goog.require('goog.userAgent');
  */
 goog.debug.FancyWindow = function(opt_identifier, opt_prefix) {
   this.readOptionsFromLocalStorage_();
-  goog.base(this, opt_identifier, opt_prefix);
+  goog.debug.FancyWindow.base(this, 'constructor', opt_identifier, opt_prefix);
 };
 goog.inherits(goog.debug.FancyWindow, goog.debug.DebugWindow);
 
@@ -136,7 +138,7 @@ goog.debug.FancyWindow.prototype.writeInitialDocument = function() {
  */
 goog.debug.FancyWindow.prototype.openOptions_ = function() {
   var el = this.dh_.getElement('optionsarea');
-  el.innerHTML = '';
+  goog.dom.safe.setInnerHtml(el, goog.html.SafeHtml.EMPTY);
 
   var loggers = goog.debug.FancyWindow.getLoggers_();
   var dh = this.dh_;
@@ -233,7 +235,7 @@ goog.debug.FancyWindow.prototype.exit_ = function(e) {
 
 /** @override */
 goog.debug.FancyWindow.prototype.getStyleRules = function() {
-  return goog.base(this, 'getStyleRules') +
+  return goog.debug.FancyWindow.base(this, 'getStyleRules') +
       'html,body{height:100%;width:100%;margin:0px;padding:0px;' +
       'background-color:#FFF;overflow:hidden}' +
       '*{}' +
@@ -335,7 +337,7 @@ goog.debug.FancyWindow.prototype.readOptionsFromLocalStorage_ = function() {
 /**
  * Helper function to create a list of locally stored keys. Used to avoid
  * expensive localStorage.getItem() calls.
- * @return {Object} List of keys.
+ * @return {!Object} List of keys.
  * @private
  */
 goog.debug.FancyWindow.getStoredKeys_ = function() {
@@ -353,7 +355,7 @@ goog.debug.FancyWindow.getStoredKeys_ = function() {
 
 /**
  * Gets a sorted array of all the loggers registered.
- * @return {!Array.<!goog.debug.Logger>} Array of logger instances.
+ * @return {!Array<!goog.debug.Logger>} Array of logger instances.
  * @private
  */
 goog.debug.FancyWindow.getLoggers_ = function() {

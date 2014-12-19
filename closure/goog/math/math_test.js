@@ -82,6 +82,20 @@ function testNearlyEquals() {
              goog.math.nearlyEquals(87, 85, 3));
 }
 
+function testStandardAngleInRadians() {
+  assertRoughlyEquals(0, goog.math.standardAngleInRadians(2 * Math.PI), 1e-10);
+  assertRoughlyEquals(
+      Math.PI, goog.math.standardAngleInRadians(Math.PI), 1e-10);
+  assertRoughlyEquals(
+      Math.PI, goog.math.standardAngleInRadians(-1 * Math.PI), 1e-10);
+  assertRoughlyEquals(
+      Math.PI / 2, goog.math.standardAngleInRadians(-1.5 * Math.PI), 1e-10);
+  assertRoughlyEquals(
+      Math.PI, goog.math.standardAngleInRadians(5 * Math.PI), 1e-10);
+  assertEquals(0.01, goog.math.standardAngleInRadians(0.01));
+  assertEquals(0, goog.math.standardAngleInRadians(0));
+}
+
 function testStandardAngle() {
   assertEquals(359.5, goog.math.standardAngle(-360.5));
   assertEquals(0, goog.math.standardAngle(-360));
@@ -274,6 +288,18 @@ function testIsFiniteNumber() {
   assertTrue(goog.math.isFiniteNumber(0));
   assertTrue(goog.math.isFiniteNumber(1));
   assertTrue(goog.math.isFiniteNumber(Math.PI));
+}
+
+function testLog10Floor() {
+  // The greatest floating point number that is less than 1.
+  var oneMinusEpsilon = 1 - Math.pow(2, -53);
+  for (var i = -30; i <= 30; i++) {
+    assertEquals(i, goog.math.log10Floor(parseFloat('1e' + i)));
+    assertEquals(i - 1,
+        goog.math.log10Floor(parseFloat('1e' + i) * oneMinusEpsilon));
+  }
+  assertEquals(-Infinity, goog.math.log10Floor(0));
+  assertTrue(isNaN(goog.math.log10Floor(-1)));
 }
 
 function testSafeFloor() {

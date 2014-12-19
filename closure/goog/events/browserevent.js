@@ -18,7 +18,6 @@
  * <pre>
  * The patched event object contains the following members:
  * - type           {string}    Event type, e.g. 'click'
- * - timestamp      {Date}      A date object for when the event was fired
  * - target         {Object}    The element that actually triggered the event
  * - currentTarget  {Object}    The element the listener is attached to
  * - relatedTarget  {Object}    For mouseover and mouseout, the previous object
@@ -41,6 +40,7 @@
  * key and character code use {@link goog.events.KeyHandler}.
  * </pre>
  *
+ * @author arv@google.com (Erik Arvidsson)
  */
 
 goog.provide('goog.events.BrowserEvent');
@@ -205,7 +205,7 @@ goog.events.BrowserEvent.MouseButton = {
 
 /**
  * Static data for mapping mouse buttons.
- * @type {!Array.<number>}
+ * @type {!Array<number>}
  */
 goog.events.BrowserEvent.IEButtonMap = [
   1, // LEFT
@@ -221,6 +221,7 @@ goog.events.BrowserEvent.IEButtonMap = [
  * @param {EventTarget=} opt_currentTarget Current target for event.
  */
 goog.events.BrowserEvent.prototype.init = function(e, opt_currentTarget) {
+  this.event_ = e;
   var type = this.type = e.type;
 
   // TODO(nicksantos): Change this.target to type EventTarget.
@@ -250,12 +251,28 @@ goog.events.BrowserEvent.prototype.init = function(e, opt_currentTarget) {
 
   this.relatedTarget = relatedTarget;
 
-  // Webkit emits a lame warning whenever layerX/layerY is accessed.
-  // http://code.google.com/p/chromium/issues/detail?id=101733
-  this.offsetX = (goog.userAgent.WEBKIT || e.offsetX !== undefined) ?
-      e.offsetX : e.layerX;
-  this.offsetY = (goog.userAgent.WEBKIT || e.offsetY !== undefined) ?
-      e.offsetY : e.layerY;
+  // Lazily calculate the offsetX/Y properties because they trigger style
+  // recalc and layout. The original event's getters are themselves lazy.
+  if (Object.defineProperties) {
+    Object.defineProperties(this,
+        /** @lends {goog.events.BrowserEvent.prototype} */ ({
+          offsetX: {
+            configurable: true,
+            enumerable: true,
+            get: this.getOffsetX_,
+            set: this.setOffsetX_
+          },
+          offsetY: {
+            configurable: true,
+            enumerable: true,
+            get: this.getOffsetY_,
+            set: this.setOffsetY_
+          }
+        }));
+  } else {
+    this.offsetX = this.getOffsetX_();
+    this.offsetY = this.getOffsetY_();
+  }
 
   this.clientX = e.clientX !== undefined ? e.clientX : e.pageX;
   this.clientY = e.clientY !== undefined ? e.clientY : e.pageY;
@@ -272,7 +289,6 @@ goog.events.BrowserEvent.prototype.init = function(e, opt_currentTarget) {
   this.metaKey = e.metaKey;
   this.platformModifierKey = goog.userAgent.MAC ? e.metaKey : e.ctrlKey;
   this.state = e.state;
-  this.event_ = e;
   if (e.defaultPrevented) {
     this.preventDefault();
   }
@@ -388,4 +404,48 @@ goog.events.BrowserEvent.prototype.getBrowserEvent = function() {
 
 /** @override */
 goog.events.BrowserEvent.prototype.disposeInternal = function() {
+};
+
+
+/** @private @return {number} */
+goog.events.BrowserEvent.prototype.getOffsetX_ = function() {
+  // Webkit emits a lame warning whenever layerX/layerY is accessed.
+  // http://code.google.com/p/chromium/issues/detail?id=101733
+  return (goog.userAgent.WEBKIT || this.event_.offsetX !== undefined) ?
+      this.event_.offsetX : this.event_.layerX;
+};
+
+
+/** @private @param {number} offset */
+goog.events.BrowserEvent.prototype.setOffsetX_ = function(offset) {
+  Object.defineProperties(this,
+      /** @lends {goog.events.BrowserEvent.prototype} */ ({
+        offsetX: {
+          writable: true,
+          enumerable: true,
+          configurable: true,
+          value: offset
+        }
+      }));
+};
+
+
+/** @private @return {number} */
+goog.events.BrowserEvent.prototype.getOffsetY_ = function() {
+  return (goog.userAgent.WEBKIT || this.event_.offsetY !== undefined) ?
+      this.event_.offsetY : this.event_.layerY;
+};
+
+
+/** @private @param {number} offset */
+goog.events.BrowserEvent.prototype.setOffsetY_ = function(offset) {
+  Object.defineProperties(this,
+      /** @lends {goog.events.BrowserEvent.prototype} */ ({
+        offsetY: {
+          writable: true,
+          enumerable: true,
+          configurable: true,
+          value: offset
+        }
+      }));
 };

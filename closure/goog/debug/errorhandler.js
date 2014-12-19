@@ -20,9 +20,11 @@
 goog.provide('goog.debug.ErrorHandler');
 goog.provide('goog.debug.ErrorHandler.ProtectedFunctionError');
 
+goog.require('goog.Disposable');
 goog.require('goog.asserts');
 goog.require('goog.debug');
 goog.require('goog.debug.EntryPointMonitor');
+goog.require('goog.debug.Error');
 goog.require('goog.debug.Trace');
 
 
@@ -45,7 +47,7 @@ goog.require('goog.debug.Trace');
  * @implements {goog.debug.EntryPointMonitor}
  */
 goog.debug.ErrorHandler = function(handler) {
-  goog.base(this);
+  goog.debug.ErrorHandler.base(this, 'constructor');
 
   /**
    * Handler for exceptions, which can do logging, reporting, etc.
@@ -222,7 +224,7 @@ goog.debug.ErrorHandler.prototype.getProtectedFunction = function(fn) {
 };
 
 
-// TODO(user): Allow these functions to take in the window to protect.
+// TODO(mknichel): Allow these functions to take in the window to protect.
 /**
  * Installs exception protection for window.setTimeout to handle exceptions.
  */
@@ -324,7 +326,7 @@ goog.debug.ErrorHandler.prototype.disposeInternal = function() {
   win.setTimeout = this.unwrap(win.setTimeout);
   win.setInterval = this.unwrap(win.setInterval);
 
-  goog.base(this, 'disposeInternal');
+  goog.debug.ErrorHandler.base(this, 'disposeInternal');
 };
 
 
@@ -340,7 +342,8 @@ goog.debug.ErrorHandler.prototype.disposeInternal = function() {
 goog.debug.ErrorHandler.ProtectedFunctionError = function(cause) {
   var message = goog.debug.ErrorHandler.ProtectedFunctionError.MESSAGE_PREFIX +
       (cause && cause.message ? String(cause.message) : String(cause));
-  goog.base(this, message);
+  goog.debug.ErrorHandler.ProtectedFunctionError.base(
+      this, 'constructor', message);
 
   /**
    * The error thrown by the entry point.

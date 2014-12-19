@@ -143,6 +143,20 @@ function testThenIsRejected() {
                0, timesCalled);
 }
 
+function testThenAsserts() {
+  var p = goog.Promise.resolve();
+
+  var m = assertThrows(function() {
+    p.then({});
+  });
+  assertContains('opt_onFulfilled should be a function.', m.message);
+
+  m = assertThrows(function() {
+    p.then(function() {}, {});
+  });
+  assertContains('opt_onRejected should be a function.', m.message);
+}
+
 
 function testOptionalOnFulfilled() {
   asyncTestCase.waitForAsync();
@@ -1292,10 +1306,46 @@ function testUnhandledRejection() {
 }
 
 
+function testUnhandledRejection_asyncTestCase() {
+  goog.Promise.reject(sentinel);
+
+  goog.Promise.setUnhandledRejectionHandler(function(error) {
+    assertEquals(sentinel, error);
+    asyncTestCase.continueTesting();
+  });
+}
+
+
+function testUnhandledThrow_asyncTestCase() {
+  goog.Promise.resolve().then(function() {
+    throw sentinel;
+  });
+
+  goog.Promise.setUnhandledRejectionHandler(function(error) {
+    assertEquals(sentinel, error);
+    asyncTestCase.continueTesting();
+  });
+}
+
+
 function testUnhandledBlockingRejection() {
   mockClock.install();
   var blocker = goog.Promise.reject(sentinel);
   goog.Promise.resolve(blocker);
+
+  mockClock.tick();
+  assertEquals(1, unhandledRejections.getCallCount());
+  var rejectionCall = unhandledRejections.popLastCall();
+  assertArrayEquals([sentinel], rejectionCall.getArguments());
+  assertEquals(goog.global, rejectionCall.getThis());
+}
+
+
+function testUnhandledRejectionAfterThenAlways() {
+  mockClock.install();
+  var resolver = goog.Promise.withResolver();
+  resolver.promise.thenAlways(function() {});
+  resolver.reject(sentinel);
 
   mockClock.tick();
   assertEquals(1, unhandledRejections.getCallCount());

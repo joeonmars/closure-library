@@ -16,10 +16,14 @@ goog.provide('goog.userAgentTest');
 goog.setTestOnly('goog.userAgentTest');
 
 goog.require('goog.array');
+goog.require('goog.labs.userAgent.platform');
+goog.require('goog.labs.userAgent.testAgents');
+goog.require('goog.labs.userAgent.util');
 goog.require('goog.testing.PropertyReplacer');
 goog.require('goog.testing.jsunit');
 goog.require('goog.userAgent');
 goog.require('goog.userAgentTestUtil');
+
 
 var documentMode;
 goog.userAgent.getDocumentMode_ = function() {
@@ -38,6 +42,7 @@ var UserAgents = {
 
 
 function tearDown() {
+  goog.labs.userAgent.util.setUserAgent(null);
   documentMode = undefined;
   propertyReplacer.reset();
 }
@@ -45,7 +50,7 @@ function tearDown() {
 
 /**
  * Test browser detection for a user agent configuration.
- * @param {Array.<number>} expectedAgents Array of expected userAgents.
+ * @param {Array<number>} expectedAgents Array of expected userAgents.
  * @param {string} uaString User agent string.
  * @param {string=} opt_product Navigator product string.
  * @param {string=} opt_vendor Navigator vendor string.
@@ -59,6 +64,9 @@ function assertUserAgent(expectedAgents, uaString, opt_product, opt_vendor) {
     }
   };
   propertyReplacer.set(goog, 'global', mockGlobal);
+
+  goog.labs.userAgent.util.setUserAgent(null);
+
   goog.userAgentTestUtil.reinitializeUserAgent();
   for (var ua in UserAgents) {
     var isExpected = goog.array.contains(expectedAgents, UserAgents[ua]);
@@ -68,22 +76,36 @@ function assertUserAgent(expectedAgents, uaString, opt_product, opt_vendor) {
 }
 
 function testOperaInit() {
+  var mockOpera = {
+    'version': function() {
+      return '9.20';
+    }
+  };
+
+  var mockGlobal = {
+    'navigator': {
+      'userAgent': 'Opera/9.20 (Windows NT 5.1; U; de),gzip(gfe)'
+    },
+    'opera': mockOpera
+  };
+  propertyReplacer.set(goog, 'global', mockGlobal);
+
   propertyReplacer.set(goog.userAgent, 'getUserAgentString', function() {
     return 'Opera/9.20 (Windows NT 5.1; U; de),gzip(gfe)';
   });
 
-  goog.global['opera'] = {
-    version: function() {
-      return '9.20';
-    }
-  };
+  goog.labs.userAgent.util.setUserAgent(null);
   goog.userAgentTestUtil.reinitializeUserAgent();
-  assertTrue(goog.userAgent.detectedOpera_);
+  assertTrue(goog.userAgent.OPERA);
   assertEquals('9.20', goog.userAgent.VERSION);
 
   // What if 'opera' global has been overwritten?
   // We must degrade gracefully (rather than throwing JS errors).
-  goog.global['opera'] = 'bobloblaw';
+  propertyReplacer.set(goog.global, 'opera', 'bobloblaw');
+
+  // NOTE(nnaze): window.opera is now ignored with the migration to
+  // goog.labs.userAgent.*. Version is expected to should stay the same.
+  goog.labs.userAgent.util.setUserAgent(null);
   goog.userAgentTestUtil.reinitializeUserAgent();
   assertUndefined(goog.userAgent.VERSION);
 }
@@ -107,6 +129,7 @@ function testCompare() {
 }
 
 function testGecko() {
+
   assertGecko('Mozilla/5.0 (Windows; U; Windows NT 5.1; nl-NL; rv:1.7.5)' +
       'Gecko/20041202 Gecko/1.0', '1.7.5');
   assertGecko('Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.7.6)' +
@@ -183,7 +206,7 @@ function testIeDocumentModeOverride() {
 
   documentMode = 8;
   assertIe('Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/5.0',
-      '8.0');
+           '8.0');
 }
 
 function testDocumentModeInStandardsMode() {
@@ -197,9 +220,6 @@ function testOpera() {
   var assertOpera = function(uaString) {
     assertUserAgent([UserAgents.OPERA], uaString);
   };
-  var assertIe = function(uaString) {
-    assertUserAgent([UserAgents.IE], uaString);
-  };
   assertOpera('Opera/7.23 (Windows 98; U) [en]');
   assertOpera('Opera/8.00 (Windows NT 5.1; U; en)');
   assertOpera('Opera/8.0 (X11; Linux i686; U; cs)');
@@ -212,15 +232,12 @@ function testOpera() {
   assertOpera('Opera/9.00 (Windows NT 5.1; U; en)');
   assertOpera('Opera/9.00 (Windows NT 5.2; U; en)');
   assertOpera('Opera/9.00 (Windows NT 6.0; U; en)');
-  // Test Opera spoofing as IE.  Currently detected as IE.
-  assertIe('Mozilla/4.0 (compatible; MSIE 5.0; Windows 2000) Opera 6.03' +
-      '[en]');
-  assertIe('Mozilla/4.0 (compatible; MSIE 5.0; Mac_PowerPC) Opera 6.0' +
-      '[en]');
-  assertIe('Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; en) Opera' +
-      '8.50');
-  assertIe('Mozilla/4.0 (compatible; MSIE 6.0; Symbian OS; Nokia' +
-      '6630/4.03.38; 6937) Opera 8.50 [es]');
+}
+
+function testWebkit() {
+  var testAgents = goog.labs.userAgent.testAgents;
+  assertWebkit(testAgents.ANDROID_BROWSER_403);
+  assertWebkit(testAgents.ANDROID_BROWSER_403_ALT);
 }
 
 function testUnknownBrowser() {
@@ -232,12 +249,24 @@ function testNoNavigator() {
   // global object has no "navigator" property.
   var mockGlobal = {};
   propertyReplacer.set(goog, 'global', mockGlobal);
+  goog.labs.userAgent.util.setUserAgent(null);
   goog.userAgentTestUtil.reinitializeUserAgent();
 
   assertEquals('Platform should be the empty string', '',
       goog.userAgent.PLATFORM);
   assertEquals('Version should be the empty string', '',
       goog.userAgent.VERSION);
+}
+
+function testLegacyChromeOsAndLinux() {
+  // As a legacy behavior, goog.userAgent.LINUX considers
+  // ChromeOS to be Linux.
+  // goog.labs.userAgent.platform.isLinux() does not.
+  goog.labs.userAgent.util.setUserAgent(
+      goog.labs.userAgent.testAgents.CHROME_OS);
+  goog.userAgentTestUtil.reinitializeUserAgent();
+  assertTrue(goog.userAgent.LINUX);
+  assertFalse(goog.labs.userAgent.platform.isLinux());
 }
 
 function assertIe(uaString, expectedVersion) {
@@ -254,4 +283,8 @@ function assertGecko(uaString, expectedVersion) {
       expectedVersion + ' but had ' + goog.userAgent.VERSION,
       expectedVersion,
       goog.userAgent.VERSION);
+}
+
+function assertWebkit(uaString) {
+  assertUserAgent([UserAgents.WEBKIT], uaString, 'WebKit');
 }

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-goog.provide('goog.testing.net.XhrIoTest');
-goog.setTestOnly('goog.testing.net.XhrIoTest');
+goog.provide('goog.net.XhrIoTest');
+goog.setTestOnly('goog.net.XhrIoTest');
 
 goog.require('goog.Uri');
 goog.require('goog.debug.EntryPointMonitor');
@@ -36,7 +36,7 @@ goog.require('goog.testing.recordFunction');
 function MockXmlHttp() {
   /**
    * The headers for this XmlHttpRequest.
-   * @type {!Object.<string>}
+   * @type {!Object<string>}
    */
   this.headers = {};
 }

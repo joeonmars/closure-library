@@ -37,7 +37,6 @@
  * - getCssClass
  *
  * @author arv@google.com (Erik Arvidsson)
- * @author reto@google.com (Reto Strobl)
  */
 
 goog.provide('goog.ui.SliderBase');
@@ -76,7 +75,7 @@ goog.require('goog.ui.RangeModel');
 /**
  * This creates a SliderBase object.
  * @param {goog.dom.DomHelper=} opt_domHelper Optional DOM helper.
- * @param {(function(number):string)=} opt_labelFn An optional function mapping
+ * @param {(function(number):?string)=} opt_labelFn An optional function mapping
  *     slider values to a description of the value.
  * @constructor
  * @extends {goog.ui.Component}
@@ -100,7 +99,7 @@ goog.ui.SliderBase = function(opt_domHelper, opt_labelFn) {
 
   /**
    * A function mapping slider values to text description.
-   * @private {?function(number):string}
+   * @private {function(number):?string}
    */
   this.labelFn_ = opt_labelFn || goog.functions.NULL;
 
@@ -109,6 +108,7 @@ goog.ui.SliderBase = function(opt_domHelper, opt_labelFn) {
       this.handleRangeModelChange, false, this);
 };
 goog.inherits(goog.ui.SliderBase, goog.ui.Component);
+goog.tagUnsealableClass(goog.ui.SliderBase);
 
 
 /**
@@ -156,6 +156,22 @@ goog.ui.SliderBase.Orientation = {
  */
 goog.ui.SliderBase.prototype.orientation_ =
     goog.ui.SliderBase.Orientation.HORIZONTAL;
+
+
+/** @private {goog.fx.AnimationParallelQueue} */
+goog.ui.SliderBase.prototype.currentAnimation_;
+
+
+/** @private {!goog.Timer} */
+goog.ui.SliderBase.prototype.incTimer_;
+
+
+/** @private {boolean} */
+goog.ui.SliderBase.prototype.incrementing_;
+
+
+/** @private {number} */
+goog.ui.SliderBase.prototype.lastMousePosition_;
 
 
 /**
@@ -399,6 +415,7 @@ goog.ui.SliderBase.DISABLED_CSS_CLASS_ =
 /** @override */
 goog.ui.SliderBase.prototype.decorateInternal = function(element) {
   goog.ui.SliderBase.superClass_.decorateInternal.call(this, element);
+  goog.asserts.assert(element);
   goog.dom.classlist.add(element, this.getCssClass(this.orientation_));
   this.createThumbs();
   this.setAriaRoles();
@@ -484,7 +501,7 @@ goog.ui.SliderBase.prototype.enableEventHandlers_ = function(enable) {
 
 /** @override */
 goog.ui.SliderBase.prototype.exitDocument = function() {
-  goog.base(this, 'exitDocument');
+  goog.ui.SliderBase.base(this, 'exitDocument');
   goog.disposeAll(this.valueDragger_, this.extentDragger_, this.keyHandler_,
                   this.mouseWheelHandler_);
 };
@@ -531,7 +548,7 @@ goog.ui.SliderBase.prototype.handleBeforeDrag_ = function(e) {
  */
 goog.ui.SliderBase.prototype.handleThumbDragStartEnd_ = function(e) {
   var isDragStart = e.type == goog.fx.Dragger.EventType.START;
-  goog.dom.classlist.enable(this.getElement(),
+  goog.dom.classlist.enable(goog.asserts.assertElement(this.getElement()),
       goog.ui.SliderBase.SLIDER_DRAGGING_CSS_CLASS_, isDragStart);
   goog.dom.classlist.enable(goog.asserts.assertElement(e.target.handle),
       goog.ui.SliderBase.THUMB_DRAGGING_CSS_CLASS_, isDragStart);
@@ -1068,7 +1085,7 @@ goog.ui.SliderBase.prototype.calculateRangeHighlightPositioning_ = function(
 /**
  * Returns the position to move the handle to for a given value
  * @param {number} val  The value to get the coordinate for.
- * @return {goog.math.Coordinate} Coordinate with either x or y set.
+ * @return {!goog.math.Coordinate} Coordinate with either x or y set.
  */
 goog.ui.SliderBase.prototype.getThumbCoordinateForValue = function(val) {
   var coord = new goog.math.Coordinate;
@@ -1287,7 +1304,8 @@ goog.ui.SliderBase.prototype.setOrientation = function(orient) {
 
     // Update the DOM
     if (this.getElement()) {
-      goog.dom.classlist.swap(this.getElement(), oldCss, newCss);
+      goog.dom.classlist.swap(goog.asserts.assert(this.getElement()),
+                              oldCss, newCss);
       // we need to reset the left and top, plus range highlight
       var pos = (this.flipForRtl_ && this.isRightToLeft()) ? 'right' : 'left';
       this.valueThumb.style[pos] = this.valueThumb.style.top = '';
@@ -1598,7 +1616,8 @@ goog.ui.SliderBase.prototype.setEnabled = function(enable) {
       // handlers be appropriately unlistened.
       this.stopBlockIncrementing_();
     }
-    goog.dom.classlist.enable(this.getElement(),
+    goog.dom.classlist.enable(
+        goog.asserts.assert(this.getElement()),
         goog.ui.SliderBase.DISABLED_CSS_CLASS_, !enable);
   }
 };
@@ -1648,6 +1667,6 @@ goog.ui.SliderBase.AnimationFactory = function() {};
  * @param {number} previousValue The previous value (before animation).
  * @param {number} newValue The new value (after animation).
  * @param {number} interval The animation interval.
- * @return {!Array.<!goog.fx.TransitionBase>} The additional animations to play.
+ * @return {!Array<!goog.fx.TransitionBase>} The additional animations to play.
  */
 goog.ui.SliderBase.AnimationFactory.prototype.createAnimations;

@@ -54,7 +54,7 @@ goog.db.IndexedDb = function(db) {
 
   /**
    * Internal event handler that listens to IDBDatabase events.
-   * @type {!goog.events.EventHandler.<!goog.db.IndexedDb>}
+   * @type {!goog.events.EventHandler<!goog.db.IndexedDb>}
    * @private
    */
   this.eventHandler_ = new goog.events.EventHandler(this);
@@ -178,7 +178,7 @@ goog.db.IndexedDb.prototype.getObjectStoreNames = function() {
  *     whether the object store should automatically generate keys for stored
  *     objects. If keyPath is not provided and autoIncrement is false, then all
  *     insert operations must provide a key as a parameter.
- * @return {goog.db.ObjectStore} The newly created object store.
+ * @return {!goog.db.ObjectStore} The newly created object store.
  * @throws {goog.db.Error} If there's a problem creating the object store.
  */
 goog.db.IndexedDb.prototype.createObjectStore = function(name, opt_params) {
@@ -255,7 +255,7 @@ goog.db.IndexedDb.prototype.setVersion = function(version) {
 /**
  * Creates a new transaction.
  *
- * @param {!Array.<string>} storeNames A list of strings that contains the
+ * @param {!Array<string>} storeNames A list of strings that contains the
  *     transaction's scope, the object stores that this transaction can operate
  *     on.
  * @param {goog.db.Transaction.TransactionMode=} opt_mode The mode of the

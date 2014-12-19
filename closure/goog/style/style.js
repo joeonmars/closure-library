@@ -15,6 +15,8 @@
 /**
  * @fileoverview Utilities for element styles.
  *
+ * @author arv@google.com (Erik Arvidsson)
+ * @author eae@google.com (Emil A Eklund)
  * @see ../demos/inline_block_quirks.html
  * @see ../demos/inline_block_standards.html
  * @see ../demos/style_viewport.html
@@ -64,7 +66,9 @@ goog.style.setStyle = function(element, style, opt_value) {
   if (goog.isString(style)) {
     goog.style.setStyle_(element, opt_value, style);
   } else {
-    goog.object.forEach(style, goog.partial(goog.style.setStyle_, element));
+    for (var key in style) {
+      goog.style.setStyle_(element, style[key], key);
+    }
   }
 };
 
@@ -88,6 +92,17 @@ goog.style.setStyle_ = function(element, value, style) {
 
 
 /**
+ * Style name cache that stores previous property name lookups.
+ *
+ * This is used by setStyle to speed up property lookups, entries look like:
+ *   { StyleName: ActualPropertyName }
+ *
+ * @private {!Object<string, string>}
+ */
+goog.style.styleNameCache_ = {};
+
+
+/**
  * Returns the style property name in camel-case. If it does not exist and a
  * vendor-specific version of the property does exist, then return the vendor-
  * specific property name instead.
@@ -97,18 +112,23 @@ goog.style.setStyle_ = function(element, value, style) {
  * @private
  */
 goog.style.getVendorJsStyleName_ = function(element, style) {
-  var camelStyle = goog.string.toCamelCase(style);
+  var propertyName = goog.style.styleNameCache_[style];
+  if (!propertyName) {
+    var camelStyle = goog.string.toCamelCase(style);
+    propertyName = camelStyle;
 
-  if (element.style[camelStyle] === undefined) {
-    var prefixedStyle = goog.dom.vendor.getVendorJsPrefix() +
-        goog.string.toTitleCase(style);
+    if (element.style[camelStyle] === undefined) {
+      var prefixedStyle = goog.dom.vendor.getVendorJsPrefix() +
+          goog.string.toTitleCase(camelStyle);
 
-    if (element.style[prefixedStyle] !== undefined) {
-      return prefixedStyle;
+      if (element.style[prefixedStyle] !== undefined) {
+        propertyName = prefixedStyle;
+      }
     }
+    goog.style.styleNameCache_[style] = propertyName;
   }
 
-  return camelStyle;
+  return propertyName;
 };
 
 
@@ -126,7 +146,7 @@ goog.style.getVendorStyleName_ = function(element, style) {
 
   if (element.style[camelStyle] === undefined) {
     var prefixedStyle = goog.dom.vendor.getVendorJsPrefix() +
-        goog.string.toTitleCase(style);
+        goog.string.toTitleCase(camelStyle);
 
     if (element.style[prefixedStyle] !== undefined) {
       return goog.dom.vendor.getVendorPrefix() + '-' + style;
@@ -317,6 +337,18 @@ goog.style.getComputedTextAlign = function(element) {
  */
 goog.style.getComputedCursor = function(element) {
   return goog.style.getStyle_(element, 'cursor');
+};
+
+
+/**
+ * Retrieves the computed value of the CSS transform attribute.
+ * @param {Element} element The element to get the transform of.
+ * @return {string} The computed string representation of the transform matrix.
+ */
+goog.style.getComputedTransform = function(element) {
+  var property = goog.style.getVendorStyleName_(element, 'transform');
+  return goog.style.getStyle_(element, property) ||
+      goog.style.getStyle_(element, 'transform');
 };
 
 
@@ -827,7 +859,8 @@ goog.style.translateRectForAnotherFrame = function(rect, origBase, newBase) {
     // Adjust Body's margin.
     pos = goog.math.Coordinate.difference(pos, goog.style.getPageOffset(body));
 
-    if (goog.userAgent.IE && !origBase.isCss1CompatMode()) {
+    if (goog.userAgent.IE && !goog.userAgent.isDocumentModeOrHigher(9) &&
+        !origBase.isCss1CompatMode()) {
       pos = goog.math.Coordinate.difference(pos, origBase.getDocumentScroll());
     }
 
@@ -902,9 +935,10 @@ goog.style.getClientPosition = function(el) {
     var be = /** @type {!goog.events.BrowserEvent} */ (el);
     var targetEvent = el;
 
-    if (el.targetTouches) {
+    if (el.targetTouches && el.targetTouches.length) {
       targetEvent = el.targetTouches[0];
-    } else if (isAbstractedEvent && be.getBrowserEvent().targetTouches) {
+    } else if (isAbstractedEvent && be.getBrowserEvent().targetTouches &&
+        be.getBrowserEvent().targetTouches.length) {
       targetEvent = be.getBrowserEvent().targetTouches[0];
     }
 
@@ -1549,6 +1583,7 @@ goog.style.setBorderBoxSize = function(element, size) {
   var isCss1CompatMode = goog.dom.getDomHelper(doc).isCss1CompatMode();
 
   if (goog.userAgent.IE &&
+      !goog.userAgent.isVersionOrHigher('10') &&
       (!isCss1CompatMode || !goog.userAgent.isVersionOrHigher('8'))) {
     var style = element.style;
     if (isCss1CompatMode) {
@@ -1612,6 +1647,7 @@ goog.style.setContentBoxSize = function(element, size) {
   var doc = goog.dom.getOwnerDocument(element);
   var isCss1CompatMode = goog.dom.getDomHelper(doc).isCss1CompatMode();
   if (goog.userAgent.IE &&
+      !goog.userAgent.isVersionOrHigher('10') &&
       (!isCss1CompatMode || !goog.userAgent.isVersionOrHigher('8'))) {
     var style = element.style;
     if (isCss1CompatMode) {
@@ -1831,7 +1867,9 @@ goog.style.getBorderBox = function(element) {
 goog.style.getFontFamily = function(el) {
   var doc = goog.dom.getOwnerDocument(el);
   var font = '';
-  if (doc.body.createTextRange) {
+  // The moveToElementText method from the TextRange only works if the element
+  // is attached to the owner document.
+  if (doc.body.createTextRange && goog.dom.contains(doc, el)) {
     var range = doc.body.createTextRange();
     range.moveToElementText(el);
     /** @preserveTry */
@@ -1945,7 +1983,7 @@ goog.style.getFontSize = function(el) {
       // value is inherited and we therefore don't want to count it twice.  If
       // it is different, this element either has explicit style or has a CSS
       // rule applying to it.
-      var parentElement = /** @type {Element} */ (el.parentNode);
+      var parentElement = /** @type {!Element} */ (el.parentNode);
       var parentSize = goog.style.getStyle_(parentElement, 'fontSize');
       return goog.style.getIePixelValue_(parentElement,
                                          fontSize == parentSize ?
@@ -2078,23 +2116,7 @@ goog.style.MATRIX_TRANSLATION_REGEX_ =
  * @return {!goog.math.Coordinate} The CSS translation of the element in px.
  */
 goog.style.getCssTranslation = function(element) {
-  var property;
-  if (goog.userAgent.IE) {
-    property = '-ms-transform';
-  } else if (goog.userAgent.WEBKIT) {
-    property = '-webkit-transform';
-  } else if (goog.userAgent.OPERA) {
-    property = '-o-transform';
-  } else if (goog.userAgent.GECKO) {
-    property = '-moz-transform';
-  }
-  var transform;
-  if (property) {
-    transform = goog.style.getStyle_(element, property);
-  }
-  if (!transform) {
-    transform = goog.style.getStyle_(element, 'transform');
-  }
+  var transform = goog.style.getComputedTransform(element);
   if (!transform) {
     return new goog.math.Coordinate(0, 0);
   }

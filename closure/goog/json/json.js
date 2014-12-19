@@ -26,7 +26,7 @@ goog.provide('goog.json.Serializer');
 
 /**
  * @define {boolean} If true, use the native JSON parsing API.
- * NOTE(user): EXPERIMENTAL, handle with care.  Setting this to true might
+ * NOTE(ruilopes): EXPERIMENTAL, handle with care.  Setting this to true might
  * break your code.  The default {@code goog.json.parse} implementation is able
  * to handle invalid JSON, such as JSPB.
  */
@@ -38,9 +38,8 @@ goog.define('goog.json.USE_NATIVE_JSON', false);
  * not using any invalid characters
  * @param {string} s The string to test.
  * @return {boolean} True if the input is a valid JSON string.
- * @private
  */
-goog.json.isValid_ = function(s) {
+goog.json.isValid = function(s) {
   // All empty whitespace is not valid.
   if (/^\s*$/.test(s)) {
     return false;
@@ -97,7 +96,7 @@ goog.json.parse = goog.json.USE_NATIVE_JSON ?
     /** @type {function(*):Object} */ (goog.global['JSON']['parse']) :
     function(s) {
       var o = String(s);
-      if (goog.json.isValid_(o)) {
+      if (goog.json.isValid(o)) {
         /** @preserveTry */
         try {
           return /** @type {Object} */ (eval('(' + o + ')'));
@@ -194,19 +193,19 @@ goog.json.Serializer = function(opt_replacer) {
  */
 goog.json.Serializer.prototype.serialize = function(object) {
   var sb = [];
-  this.serialize_(object, sb);
+  this.serializeInternal(object, sb);
   return sb.join('');
 };
 
 
 /**
  * Serializes a generic value to a JSON string
- * @private
+ * @protected
  * @param {*} object The object to serialize.
- * @param {Array} sb Array used as a string builder.
+ * @param {Array<string>} sb Array used as a string builder.
  * @throws Error if there are loops in the object graph.
  */
-goog.json.Serializer.prototype.serialize_ = function(object, sb) {
+goog.json.Serializer.prototype.serializeInternal = function(object, sb) {
   switch (typeof object) {
     case 'string':
       this.serializeString_(/** @type {string} */ (object), sb);
@@ -226,7 +225,7 @@ goog.json.Serializer.prototype.serialize_ = function(object, sb) {
         break;
       }
       if (goog.isArray(object)) {
-        this.serializeArray(/** @type {!Array} */ (object), sb);
+        this.serializeArray(/** @type {!Array<?>} */ (object), sb);
         break;
       }
       // should we allow new String, new Number and new Boolean to be treated
@@ -279,7 +278,7 @@ goog.json.Serializer.charsToReplace_ = /\uffff/.test('\uffff') ?
  * Serializes a string to a JSON string
  * @private
  * @param {string} s The string to serialize.
- * @param {Array} sb Array used as a string builder.
+ * @param {Array<string>} sb Array used as a string builder.
  */
 goog.json.Serializer.prototype.serializeString_ = function(s, sb) {
   // The official JSON implementation does not work with international
@@ -308,7 +307,7 @@ goog.json.Serializer.prototype.serializeString_ = function(s, sb) {
  * Serializes a number to a JSON string
  * @private
  * @param {number} n The number to serialize.
- * @param {Array} sb Array used as a string builder.
+ * @param {Array<string>} sb Array used as a string builder.
  */
 goog.json.Serializer.prototype.serializeNumber_ = function(n, sb) {
   sb.push(isFinite(n) && !isNaN(n) ? n : 'null');
@@ -317,8 +316,8 @@ goog.json.Serializer.prototype.serializeNumber_ = function(n, sb) {
 
 /**
  * Serializes an array to a JSON string
- * @param {Array} arr The array to serialize.
- * @param {Array} sb Array used as a string builder.
+ * @param {Array<string>} arr The array to serialize.
+ * @param {Array<string>} sb Array used as a string builder.
  * @protected
  */
 goog.json.Serializer.prototype.serializeArray = function(arr, sb) {
@@ -329,7 +328,7 @@ goog.json.Serializer.prototype.serializeArray = function(arr, sb) {
     sb.push(sep);
 
     var value = arr[i];
-    this.serialize_(
+    this.serializeInternal(
         this.replacer_ ? this.replacer_.call(arr, String(i), value) : value,
         sb);
 
@@ -343,7 +342,7 @@ goog.json.Serializer.prototype.serializeArray = function(arr, sb) {
  * Serializes an object to a JSON string
  * @private
  * @param {Object} obj The object to serialize.
- * @param {Array} sb Array used as a string builder.
+ * @param {Array<string>} sb Array used as a string builder.
  */
 goog.json.Serializer.prototype.serializeObject_ = function(obj, sb) {
   sb.push('{');
@@ -358,7 +357,7 @@ goog.json.Serializer.prototype.serializeObject_ = function(obj, sb) {
         this.serializeString_(key, sb);
         sb.push(':');
 
-        this.serialize_(
+        this.serializeInternal(
             this.replacer_ ? this.replacer_.call(obj, key, value) : value,
             sb);
 
